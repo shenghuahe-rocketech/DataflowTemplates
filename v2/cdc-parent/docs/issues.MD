@@ -18,8 +18,11 @@ When a new column is added in the source database, new PubSub messages will cont
 
 This cannot be resolved even by restarting the dataflow job, and I am not entirely sure why yet. It is surely related to the added column, and the Dataflow pipeline is not handling it correctly.
 
+This might be where it broke. The beam schema is passed into the decoder, and if the schema does not match (in this case it won't) the message cannot be decoded
+![error](decode_issue.png) 
+
 Possible solutions
-1. Ignore unknown values - we can turn this on and ignore all new columns, this will lose data from the new columns but will allow the pipeline to continue
-1. Allow streaming inserts to add new columns somehow (not sure if this works with the Record type which is what's in the changelog table), there might be issues on streaming inserts rejecting the new column when it's just added so needs verifying it works
+1. (easier) Ignore unknown values - we can turn this on and ignore all new columns, this will lose data from the new columns but will allow the pipeline to continue
+1. (hard) Allow streaming inserts to add new columns somehow (not sure if this works with the Record type which is what's in the changelog table), there might be issues on streaming inserts rejecting the new column when it's just added so needs verifying it works
 
  
