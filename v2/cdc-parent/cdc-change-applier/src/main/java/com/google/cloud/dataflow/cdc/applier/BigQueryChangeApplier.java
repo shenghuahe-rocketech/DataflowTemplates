@@ -135,6 +135,7 @@ public class BigQueryChangeApplier extends PTransform<PCollection<Row>, PDone> {
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND)
             .withMethod(Method.STREAMING_INSERTS)
+            .ignoreUnknownValues()
         .to(new ChangelogTableDynamicDestinations(changeLogDataset, gcpProjectId, schemaMapView)));
 
     String jobPrefix =

@@ -121,6 +121,7 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
         }
 
         if (!observedTables.contains(tableName)) {
+          LOG.info("Updating schema for observed table: " + tableName);
           Entry result = schemaUpdater.updateSchemaForTable(
               tableName, updateRecord.getSchema());
           if (result == null) {

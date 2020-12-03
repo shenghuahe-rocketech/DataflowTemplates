@@ -26,3 +26,22 @@ Possible solutions
 1. (hard) Allow streaming inserts to add new columns somehow (not sure if this works with the Record type which is what's in the changelog table), there might be issues on streaming inserts rejecting the new column when it's just added so needs verifying it works
 
  
+## Progress of solving
+Found
+- The issue seems to be caused by the connector successfully detects the new schema after restarting (the code does not detect schema changes), but failing
+to update the schema in the Data Catalog Entry Group because it already exists. 
+- Encoding the message before sending to pubsub isn't causing any issues if the newly added column is not used. Meaning it's either remains null for an existing record, 
+or left as null for a new record. These are all considered backwards compatible and does not require schema change. 
+
+Next steps 1
+- Find out how to update existing entries in data catalog then we should be able to encode and decode messages with new schema
+
+Progress so far and more issues
+- Dropping schema from data catalog if it exist and updating it with the latest one
+- Appending is working for log table but not for merge which makes sense because schema has changed
+
+- Deletion is causing a lot of problems to the decoder, maybe deletion should be handled in data catalog and never allowed to be removed once added? 
+
+Next steps 2
+- See if we can make sure columns added to the data catalog is never removed
+- fix merge query
