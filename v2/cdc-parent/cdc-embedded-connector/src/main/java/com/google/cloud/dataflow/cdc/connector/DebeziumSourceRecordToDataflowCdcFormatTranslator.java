@@ -50,6 +50,33 @@ public class DebeziumSourceRecordToDataflowCdcFormatTranslator {
       DebeziumSourceRecordToDataflowCdcFormatTranslator.class);
 
   private final Map<String, org.apache.beam.sdk.schemas.Schema> knownSchemas = new HashMap<>();
+  private final Map<String, Schema> knownDebeziumSchemas = new HashMap<>();
+
+
+  /**
+   * Check if schema has changed, this only detect additions / deletions
+   * @param record source record
+   * @return boolean
+   */
+  private boolean schemaForTableHasChanged(SourceRecord record) {
+    String qualifiedTableName = record.topic();
+    Struct recordValue = (Struct) record.value();
+    if (recordValue == null) {
+      return false;
+    }
+
+    Struct afterValue = recordValue.getStruct("after");
+    if (afterValue == null) {
+      return false;
+    }
+
+    if (afterValue.schema().fields().size() != knownDebeziumSchemas.get(qualifiedTableName).fields().size()) {
+      knownDebeziumSchemas.put(qualifiedTableName, afterValue.schema());
+      return true;
+    }
+
+    return false;
+  }
 
   public Row translate(SourceRecord record) {
     LOG.debug("Source Record from Debezium: {}", record);
@@ -84,6 +111,12 @@ public class DebeziumSourceRecordToDataflowCdcFormatTranslator {
     Long timestampMs = recordValue.getInt64("ts_ms");
 
     if (!knownSchemas.containsKey(qualifiedTableName)) {
+      // Track the debezium schema before it's converted
+      knownDebeziumSchemas.put(qualifiedTableName, afterValue.schema());
+    }
+
+    if (!knownSchemas.containsKey(qualifiedTableName) || schemaForTableHasChanged(record)) {
+      LOG.info("New Schema or schema has changed for table: " + qualifiedTableName);
       org.apache.beam.sdk.schemas.Schema.Builder schemaBuilder = org.apache.beam.sdk.schemas.Schema
           .builder()
           .addStringField(DataflowCdcRowFormat.OPERATION)

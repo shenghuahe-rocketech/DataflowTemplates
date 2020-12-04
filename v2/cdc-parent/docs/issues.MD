@@ -40,7 +40,15 @@ Progress so far and more issues
 - Dropping schema from data catalog if it exist and updating it with the latest one
 - Appending is working for log table but not for merge which makes sense because schema has changed
 
-- Deletion is causing a lot of problems to the decoder, maybe deletion should be handled in data catalog and never allowed to be removed once added? 
+**Deletion risks**
+ 
+Deleting from the end of the table does not cause the connector to break but deleting from the middle is very bad
+- when deleting from the middle, an old schema will be used, in the event the data types on remaining columns don't match, the connector will break which is safe
+- when deleting from the middle, an old schema will be used, in the event the data types on remaining columns `DO mbatch up`, the data and column will be encoded `incorrectly` and data is now corrupted (i.e.column c goes into b)
+
+This is very hard to resolve and can cause serious issues, the issue is we need to track the schema has changed immediately when it's changed
+in order to encode & decode the message correctly but this isn't possible using the current approach because the schema is 
+tracked separately in data catalog which isn't going to work, it has to be on each message instead. 
 
 Next steps 2
 - See if we can make sure columns added to the data catalog is never removed

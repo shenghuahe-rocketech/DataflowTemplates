@@ -36,6 +36,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +61,6 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
   };
 
   private final Map<String, Publisher> pubsubPublisherMap;
-  private final Map<String, RowCoder> rowCoderMap;
 
   private final Set<String> whitelistedTables;
   private final Set<String> observedTables;
@@ -75,7 +76,6 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
     this.whitelistedTables = whitelistedTables;
     this.observedTables = new HashSet<>();
     this.pubsubPublisherMap = new HashMap<>();
-    this.rowCoderMap = new HashMap<>();
     this.schemaUpdater = schemaUpdater;
     this.pubSubPublisherFactory = pubSubPublisherFactory;
   }
@@ -88,15 +88,6 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
     }
 
     return pubsubPublisherMap.get(tableName);
-  }
-
-  private RowCoder getCoderForRow(String tableName, Row record) {
-    if (!rowCoderMap.containsKey(tableName)) {
-      RowCoder coderForTableTopic = RowCoder.of(record.getSchema());
-      rowCoderMap.put(tableName, coderForTableTopic);
-    }
-
-    return rowCoderMap.get(tableName);
   }
 
   @Override
@@ -143,7 +134,9 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
         LOG.debug("Update Record is: {}", updateRecord);
 
         try {
-          RowCoder recordCoder = getCoderForRow(tableName, updateRecord);
+          // always get the latest schema from the record because it could have been changed
+          RowCoder recordCoder = RowCoder.of(updateRecord.getSchema());
+
           ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
           recordCoder.encode(updateRecord, outputStream);
 
