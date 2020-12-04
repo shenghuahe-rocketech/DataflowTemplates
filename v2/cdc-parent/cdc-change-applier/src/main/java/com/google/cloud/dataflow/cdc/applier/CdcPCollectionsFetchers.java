@@ -102,7 +102,7 @@ class CdcPCollectionsFetchers {
                     .via(PubsubMessage::getPayload))
             .apply(
                 String.format("%s/Decode", transformTopicPrefix),
-                DecodeRows.withSchema(rss.schema));
+                DecodeRows.decode());
 
         result.put(transformTopicPrefix, collectionOfRows);
       }
@@ -193,7 +193,7 @@ class CdcPCollectionsFetchers {
           .apply(
               String.format("Extract payload_%s", tableName),
               MapElements.into(TypeDescriptor.of(byte[].class)).via(PubsubMessage::getPayload))
-          .apply(String.format("Decode_%s", tableName), DecodeRows.withSchema(tableSchema));
+          .apply(String.format("Decode_%s", tableName), DecodeRows.decode());
     }
   }
 }

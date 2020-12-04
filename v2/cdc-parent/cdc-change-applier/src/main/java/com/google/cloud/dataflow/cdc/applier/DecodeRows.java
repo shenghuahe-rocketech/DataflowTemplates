@@ -17,40 +17,43 @@ package com.google.cloud.dataflow.cdc.applier;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.schemas.Schema;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.util.Base64;
+import java.util.Optional;
+
+import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import com.google.cloud.dataflow.cdc.common.ObjectHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Receives byte-encoded Rows, and returns decoded Row objects. */
+
+/**
+ * Receives byte-encoded Rows, and returns decoded Row objects.
+ */
 public class DecodeRows extends PTransform<PCollection<byte[]>, PCollection<Row>> {
+  private static final Logger LOG = LoggerFactory.getLogger(DecodeRows.class);
 
-  private final Coder<Row> coder;
-  private final Schema schema;
-
-  private DecodeRows(Schema beamSchema) {
-    this.coder = RowCoder.of(beamSchema);
-    this.schema = beamSchema;
+  private DecodeRows() {
   }
 
-  public static DecodeRows withSchema(Schema beamSchema) {
-    return new DecodeRows(beamSchema);
+  public static DecodeRows decode() {
+    return new DecodeRows();
   }
 
   public PCollection<Row> expand(PCollection<byte[]> input) {
     return input.apply(MapElements.into(TypeDescriptors.rows())
         .via(elm -> {
-          ByteArrayInputStream bis = new ByteArrayInputStream(elm);
-          try {
-            return coder.decode(bis);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        }))
-        .setRowSchema(this.schema);
+          String base64EncodedRecord = ByteString.copyFrom(elm).toStringUtf8();
+          LOG.debug("Row decoded: " + base64EncodedRecord);
+          Optional<Serializable> payload = ObjectHelper.convertFrom(base64EncodedRecord);
+
+          return (Row) payload.orElse(null);
+        }));
   }
 }
