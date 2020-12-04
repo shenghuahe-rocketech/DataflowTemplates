@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.cdc.connector;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.datacatalog.v1beta1.Entry;
 import com.google.cloud.dataflow.cdc.common.DataCatalogSchemaUtils.DataCatalogSchemaManager;
+import com.google.cloud.dataflow.cdc.common.ObjectHelper;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
@@ -27,11 +28,8 @@ import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.embedded.EmbeddedEngine.RecordCommitter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.Serializable;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -40,6 +38,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.LoggerFactory;
+import com.google.cloud.dataflow.cdc.common.ObjectHelper;
 
 /** Implements Debezium's Embedded Engine change consumer to push data to PubSub. */
 public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
@@ -133,24 +132,18 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
         PubsubMessage.Builder messageBuilder = PubsubMessage.newBuilder();
         LOG.debug("Update Record is: {}", updateRecord);
 
-        try {
-          // always get the latest schema from the record because it could have been changed
-          RowCoder recordCoder = RowCoder.of(updateRecord.getSchema());
+        // always get the latest schema from the record because it could have been changed
+        Optional<String> beamRowBase64 = ObjectHelper.convertToString(updateRecord);
 
-          ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-          recordCoder.encode(updateRecord, outputStream);
-
-          ByteString encodedUpdate = ByteString.copyFrom(outputStream.toByteArray());
+        if (beamRowBase64.isPresent()) {
+          ByteString data = ByteString.copyFromUtf8(beamRowBase64.get());
           PubsubMessage message = messageBuilder
-              .setData(encodedUpdate)
-              .putAttributes("table", tableName)
-              .build();
+                  .setData(data)
+                  .putAttributes("table", tableName)
+                  .build();
           futureListBuilder.add(pubSubPublisher.publish(message));
-        } catch (IOException e) {
-          LOG.error("Caught exception {} when trying to encode record {}. Stopping processing.",
-              e, updateRecord);
-          return;
         }
+
       } else {
         LOG.debug("Discarding record: {}", r);
       }
