@@ -17,6 +17,9 @@ package com.google.cloud.dataflow.cdc.applier;
 
 import static com.google.cloud.dataflow.cdc.applier.PubsubUtils.buildTopicSubscriptionSchemas;
 
+import com.google.cloud.bigquery.*;
+import com.google.cloud.datacatalog.v1beta1.DataCatalogClient;
+import com.google.cloud.datacatalog.v1beta1.EntryName;
 import com.google.cloud.dataflow.cdc.applier.CdcPCollectionsFetchers.CdcPCollectionFetcher;
 import com.google.cloud.dataflow.cdc.applier.PubsubUtils.TopicSubscriptionSchema;
 import java.io.IOException;

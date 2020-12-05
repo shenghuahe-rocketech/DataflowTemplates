@@ -17,7 +17,12 @@ package com.google.cloud.dataflow.cdc.applier;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
+import com.google.cloud.bigquery.*;
+import com.google.cloud.datacatalog.v1beta1.DataCatalogClient;
+import com.google.cloud.datacatalog.v1beta1.EntryName;
 import com.google.cloud.dataflow.cdc.common.DataflowCdcRowFormat;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.metrics.Counter;
@@ -59,7 +64,8 @@ public class MergeStatementBuildingFn
   MergeStatementBuildingFn(
       String changelogDatasetId,
       String replicaDatasetId,
-      String projectId) {
+      String projectId
+  ) {
     this.changelogDatasetId = changelogDatasetId;
     this.replicaDatasetId = replicaDatasetId;
     this.projectId = projectId;
@@ -112,7 +118,8 @@ public class MergeStatementBuildingFn
       KV<String, KV<Schema, Schema>> tableAndSchemas,
       String projectId,
       String changelogDatasetId,
-      String replicaDatasetId) {
+      String replicaDatasetId
+  ) {
     String tableName = ChangelogTableDynamicDestinations.getBigQueryTableName(
         tableAndSchemas.getKey(), false);
 
@@ -123,9 +130,24 @@ public class MergeStatementBuildingFn
     List<String> pkColumnNames = primaryKeySchema.getFields().stream()
         .map(f -> f.getName()).collect(Collectors.toList());
 
-    Schema allColumnsSchema = tableAndSchemas.getValue().getValue();
-    List<String> allColumnNames = allColumnsSchema.getFields().stream()
-        .map(f -> f.getName()).collect(Collectors.toList());
+    Schema allColumnsSchema = tableAndSchemas.getValue().getValue(); // Not used but this contains the latest schema
+
+    // Get existing columns from bigquery and ignore all new columns
+    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    String query = "SELECT distinct column_name from %s.INFORMATION_SCHEMA.COLUMNS WHERE table_name = '%s';";
+    String formattedQuery = String.format(query, replicaDatasetId, tableName);
+    QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(formattedQuery).build();
+    List<String> existingColumns = new ArrayList<>();
+
+    try {
+      for (FieldValueList row : bigquery.query(queryConfig).iterateAll()) {
+          existingColumns.add(row.get(0).getStringValue());
+      }
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+
+    List<String> allColumnNames = existingColumns;
 
     String mergeStatement = buildQueryMergeReplicaTableWithChangeLogTable(
         tableName, changeLogTableName,

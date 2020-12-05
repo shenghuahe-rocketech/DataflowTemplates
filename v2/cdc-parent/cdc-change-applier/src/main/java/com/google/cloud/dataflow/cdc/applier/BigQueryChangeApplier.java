@@ -17,9 +17,11 @@ package com.google.cloud.dataflow.cdc.applier;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.cdc.common.DataflowCdcRowFormat;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+
+import java.util.*;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -134,7 +136,7 @@ public class BigQueryChangeApplier extends PTransform<PCollection<Row>, PDone> {
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND)
             .withMethod(Method.STREAMING_INSERTS)
-            .ignoreUnknownValues()
+            .ignoreUnknownValues() // TODO: this loses data from new columns but won't break the pipeline, find a way to do both
         .to(new ChangelogTableDynamicDestinations(changeLogDataset, gcpProjectId, schemaMapView)));
 
     String jobPrefix =
@@ -143,6 +145,8 @@ public class BigQueryChangeApplier extends PTransform<PCollection<Row>, PDone> {
 
     // If the input collection does not have a primary key field, then we do not need to issue
     // periodic merge requests.
+
+    // TODO: what happens when there is no primary key because the condition is removed.
     PCollection<KV<String, KV<Schema, Schema>>> heartBeatInput = input
         .apply("KeyByTable", ParDo.of(new KeySchemasByTableFn(schemaMapView))
             .withSideInputs(schemaMapView))

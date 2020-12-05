@@ -20,6 +20,7 @@ import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.datacatalog.v1.EntryGroupName;
 import com.google.cloud.datacatalog.v1.EntryName;
+import com.google.cloud.datacatalog.v1.GetEntryRequest;
 import com.google.cloud.datacatalog.v1beta1.CreateEntryGroupRequest;
 import com.google.cloud.datacatalog.v1beta1.CreateEntryRequest;
 import com.google.cloud.datacatalog.v1beta1.DataCatalogClient;
@@ -285,16 +286,7 @@ public class DataCatalogSchemaUtils {
       try {
         return client.createEntry(createEntryRequest);
       } catch (AlreadyExistsException e) {
-        LOG.info("Schema entry in data catalog already exists for table" + tableName + ", recreating it using new schema");
-        client.deleteEntry(
-                EntryName.of(
-                        getGcpProject(),
-                        location,
-                        entryGroupNameForTopic(pubsubTopic),
-                        sanitizeEntryName(tableName)
-                ).toString()
-        );
-        client.createEntry(createEntryRequest);
+        LOG.info("Schema entry in data catalog already exists for table" + tableName + ", ignore...");
         return createEntryRequest.getEntry();
       }
     }
