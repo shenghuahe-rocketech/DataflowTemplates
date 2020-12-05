@@ -27,29 +27,8 @@ Possible solutions
 
  
 ## Progress of solving
-Found
-- The issue seems to be caused by the connector successfully detects the new schema after restarting (the code does not detect schema changes), but failing
-to update the schema in the Data Catalog Entry Group because it already exists. 
-- Encoding the message before sending to pubsub isn't causing any issues if the newly added column is not used. Meaning it's either remains null for an existing record, 
-or left as null for a new record. These are all considered backwards compatible and does not require schema change. 
-
-Next steps 1
-- Find out how to update existing entries in data catalog then we should be able to encode and decode messages with new schema
-
-Progress so far and more issues
-- Dropping schema from data catalog if it exist and updating it with the latest one
-- Appending is working for log table but not for merge which makes sense because schema has changed
-
-**Deletion risks**
- 
-Deleting from the end of the table does not cause the connector to break but deleting from the middle is very bad
-- when deleting from the middle, an old schema will be used, in the event the data types on remaining columns don't match, the connector will break which is safe
-- when deleting from the middle, an old schema will be used, in the event the data types on remaining columns `DO mbatch up`, the data and column will be encoded `incorrectly` and data is now corrupted (i.e.column c goes into b)
-
-This is very hard to resolve and can cause serious issues, the issue is we need to track the schema has changed immediately when it's changed
-in order to encode & decode the message correctly but this isn't possible using the current approach because the schema is 
-tracked separately in data catalog which isn't going to work, it has to be on each message instead. 
-
-Next steps 2
-- See if we can make sure columns added to the data catalog is never removed
-- fix merge query
+Issues solved
+- Old solution causes message to either fail to encode or decode because it uses the beam schema to encode the message before sending to pubsub. 
+This is now changed to use base64 which gets around the schema encoding / decoding issue and the schema is always passed with the message itself
+- Old solution always uses out of date schema when encoding / decoding data which not only breaks when there are schema changes but also can cause data corruption when column types are the same but out of order. 
+This is now change to always use the latest schema when encoding & decoding but when inserting into BQ, only existing columns are used. This means as long as source table makes backwards compatible change, nothing will break but newly added column won't be insert into BigQuery. 
