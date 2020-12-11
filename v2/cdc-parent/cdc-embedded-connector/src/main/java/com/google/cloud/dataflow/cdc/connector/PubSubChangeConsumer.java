@@ -133,10 +133,9 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
         LOG.debug("Update Record is: {}", updateRecord);
 
         // always get the latest schema from the record because it could have been changed
-        Optional<String> beamRowBase64 = ObjectHelper.convertToString(updateRecord);
-
-        if (beamRowBase64.isPresent()) {
-          ByteString data = ByteString.copyFromUtf8(beamRowBase64.get());
+        byte[] record = ObjectHelper.convertToByteArray(updateRecord);
+        if (record != null) {
+          ByteString data = ByteString.copyFrom(record);
           PubsubMessage message = messageBuilder
                   .setData(data)
                   .putAttributes("table", tableName)

@@ -25,6 +25,26 @@ public class ObjectHelper {
         }
     }
 
+    public static byte[] convertToByteArray(final Serializable object) {
+        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(object);
+            return baos.toByteArray();
+        } catch (final IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static <T extends Serializable> Object convertFromByteArray(final byte[] object) {
+        try (final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(object))) {
+            return ois.readObject();
+        } catch (final IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public static <T extends Serializable> Optional<T> convertFrom(final String objectAsString) {
         final byte[] data = Base64.getDecoder().decode(objectAsString);
         try (final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data))) {

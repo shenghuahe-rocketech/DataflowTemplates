@@ -49,11 +49,8 @@ public class DecodeRows extends PTransform<PCollection<byte[]>, PCollection<Row>
   public PCollection<Row> expand(PCollection<byte[]> input) {
     return input.apply(MapElements.into(TypeDescriptors.rows())
         .via(elm -> {
-          String base64EncodedRecord = ByteString.copyFrom(elm).toStringUtf8();
-          LOG.debug("Row decoded: " + base64EncodedRecord);
-          Optional<Serializable> payload = ObjectHelper.convertFrom(base64EncodedRecord);
-
-          return (Row) payload.orElse(null);
+          Object payload = ObjectHelper.convertFromByteArray(elm);
+          return (Row) payload;
         }));
   }
 }
