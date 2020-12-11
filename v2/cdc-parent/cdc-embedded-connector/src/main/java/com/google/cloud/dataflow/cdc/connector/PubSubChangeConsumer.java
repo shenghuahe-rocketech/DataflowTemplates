@@ -27,11 +27,9 @@ import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.embedded.EmbeddedEngine.RecordCommitter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -107,8 +105,12 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
 
     Set<Publisher> usedPublishers = new HashSet<>();
 
+    int recordCount = 0;
+    long start = System.nanoTime();
+
     // TODO(pabloem): Improve the commit logic.
     for (SourceRecord r : records) {
+      recordCount++;
 
       // Debezium publishes updates for each table in a separate Kafka topic, which is the fully
       // qualified name of the MySQL table (e.g. dbInstanceName.databaseName.table_name).
@@ -176,5 +178,11 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
     }
 
     committer.markBatchFinished();
+
+    long elapsedTime = System.nanoTime() - start;
+    DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+    Date date = new Date();
+    LOG.warn("Processed batch of: " + recordCount + " in " + elapsedTime / 1000000 + " ms, at " + dateFormat.format(date));
+
   }
 }
