@@ -16,6 +16,8 @@
 package com.google.cloud.dataflow.cdc.connector;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
+import com.google.api.gax.batching.BatchingSettings;
 import com.google.cloud.datacatalog.v1beta1.Entry;
 import com.google.cloud.dataflow.cdc.common.DataCatalogSchemaUtils.DataCatalogSchemaManager;
 import com.google.cloud.dataflow.cdc.common.ObjectHelper;
@@ -36,11 +38,23 @@ import java.util.function.BiFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 /** Implements Debezium's Embedded Engine change consumer to push data to PubSub. */
 public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(PubSubChangeConsumer.class);
+
+  private static final long requestBytesThreshold = 25000L; // default : 1 byte
+  private static final long messageCountBatchSize = 100L; // default : 1 message
+  private static final Duration publishDelayThreshold = Duration.ofMillis(100); // default : 1 ms
+
+  private static final BatchingSettings batchingSettings =
+      BatchingSettings.newBuilder()
+          .setElementCountThreshold(messageCountBatchSize)
+          .setRequestByteThreshold(requestBytesThreshold)
+          .setDelayThreshold(publishDelayThreshold)
+          .build();
 
   public static final BiFunction<String, DataCatalogSchemaManager, Publisher>
       DEFAULT_PUBLISHER_FACTORY = (tableName, schemaUtils) -> {
@@ -49,6 +63,7 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
           schemaUtils.getGcpProject(), schemaUtils.getPubSubTopicForTable(tableName));
       return Publisher
           .newBuilder(projectTopicName)
+          .setBatchingSettings(batchingSettings)
           .build();
     } catch (IOException e) {
       LOG.error("Unable to create a PubSub Publisher", e);
