@@ -15,14 +15,6 @@
  */
 package com.google.cloud.dataflow.cdc.applier;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
-import java.util.Base64;
-import java.util.Optional;
-
-import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -49,7 +41,7 @@ public class DecodeRows extends PTransform<PCollection<byte[]>, PCollection<Row>
   public PCollection<Row> expand(PCollection<byte[]> input) {
     return input.apply(MapElements.into(TypeDescriptors.rows())
         .via(elm -> {
-          Object payload = ObjectHelper.convertFromByteArray(elm);
+          Object payload = ObjectHelper.convertFromByteArray(ObjectHelper.gzipUncompress(elm));
           return (Row) payload;
         }));
   }

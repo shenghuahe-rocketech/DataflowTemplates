@@ -26,21 +26,16 @@ import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.embedded.EmbeddedEngine.RecordCommitter;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
-import org.apache.beam.sdk.coders.RowCoder;
+
 import org.apache.beam.sdk.values.Row;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.LoggerFactory;
-import com.google.cloud.dataflow.cdc.common.ObjectHelper;
 
 /** Implements Debezium's Embedded Engine change consumer to push data to PubSub. */
 public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
@@ -141,8 +136,11 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
 
         // always get the latest schema from the record because it could have been changed
         byte[] record = ObjectHelper.convertToByteArray(updateRecord);
+
         if (record != null) {
-          ByteString data = ByteString.copyFrom(record);
+          byte[] recordCompressed = ObjectHelper.gzipCompress(record);
+          ByteString data = ByteString.copyFrom(recordCompressed);
+
           PubsubMessage message = messageBuilder
                   .setData(data)
                   .putAttributes("table", tableName)
@@ -173,6 +171,6 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
     long elapsedTime = System.nanoTime() - start;
     DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
     Date date = new Date();
-    LOG.warn("Processed batch of: " + recordCount + " in " + elapsedTime / 1000000 + " ms, at " + dateFormat.format(date));
+    LOG.info("Processed batch of: " + recordCount + " in " + elapsedTime / 1000000 + " ms, at " + dateFormat.format(date));
   }
 }
