@@ -130,7 +130,7 @@ public class MergeStatementBuildingFn
     List<String> pkColumnNames = primaryKeySchema.getFields().stream()
         .map(f -> f.getName()).collect(Collectors.toList());
 
-    Schema allColumnsSchema = tableAndSchemas.getValue().getValue(); // Not used but this contains the latest schema
+    Schema allColumnsSchema = tableAndSchemas.getValue().getValue();
 
     // Get existing columns from bigquery and ignore all new columns
     BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
@@ -147,7 +147,15 @@ public class MergeStatementBuildingFn
       e.printStackTrace();
     }
 
-    List<String> allColumnNames = existingColumns;
+    List<String> allColumnNames;
+    // When a new table is whitelisted, the BigQuery table hasn't been created at this point,
+    // in this case, use the latest schema from the message instead
+    if (existingColumns.size() == 0) {
+      allColumnNames = allColumnsSchema.getFieldNames();
+    }
+    else {
+      allColumnNames = existingColumns;
+    }
 
     String mergeStatement = buildQueryMergeReplicaTableWithChangeLogTable(
         tableName, changeLogTableName,
