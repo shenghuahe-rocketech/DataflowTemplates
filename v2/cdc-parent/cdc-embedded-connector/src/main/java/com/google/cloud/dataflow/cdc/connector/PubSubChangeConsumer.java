@@ -45,9 +45,9 @@ public class PubSubChangeConsumer implements EmbeddedEngine.ChangeConsumer {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(PubSubChangeConsumer.class);
 
-  private static final long requestBytesThreshold = 25000L; // default : 1 byte
-  private static final long messageCountBatchSize = 100L; // default : 1 message
-  private static final Duration publishDelayThreshold = Duration.ofMillis(100); // default : 1 ms
+  private static final long requestBytesThreshold = 1048576L; // default : 1 byte
+  private static final long messageCountBatchSize = 1000L; // default : 1 message
+  private static final Duration publishDelayThreshold = Duration.ofMillis(1000); // default : 1 ms
 
   private static final BatchingSettings batchingSettings =
       BatchingSettings.newBuilder()
